@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:oauth2-provider="http://www.mulesoft.org/schema/mule/oauth2-provider" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/oauth2-provider http://www.mulesoft.org/schema/mule/oauth2-provider/current/mule-oauth2-provider.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="a2a94aff-fbd5-4426-9767-b1d9735a8634" >
+		<http:listener-connection host="${http.host}" port="${http.port}" />
+	</http:listener-config>
+	<oauth2-provider:config name="external-oauth2-provider"
+    							resourceOwnerSecurityProvider="resourceOwnerSecurityProvider"
+    							clientSecurityProvider="clientSecurityProvider"
+    							supportedGrantTypes="${oauth.supportedgranttypes.all}"
+    							listenerConfig="HTTP_Listener_config"
+    							clientStore="clientObjectStore" scopes="${oauth.scopes.all}" defaultScopes="${oauth.scopes.default}" providerName="oAuth_provider">
+    		<oauth2-provider:token-config path="${oauth.token.path}" tokenTtl="${oauth.token.ttl}" tokenStore="tokenObjectStore">
+                <oauth2-provider:refresh-token-strategy>
+                    <oauth2-provider:single-refresh-token objectStore="refreshTokenObjectStore"/>
+                </oauth2-provider:refresh-token-strategy>
+            </oauth2-provider:token-config>
+    		<oauth2-provider:authorization-config authorizationCodeStore="authorizationCodeObjectStore"/>
+    	</oauth2-provider:config>
+    
+	<flow name="oauth-provider-validateFlow" doc:id="d6e8f3ce-340a-440c-9961-5344eb91f32a" >
+		<http:listener doc:name="Listener" doc:id="b7c0e7c5-a85a-4d36-a6bd-ef2d29431316" config-ref="HTTP_Listener_config" path="${uri.path}"/>
+		<oauth2-provider:validate-token config-ref="external-oauth2-provider"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="ac899de4-25a7-4fbd-b2e2-132419a1e192" type="OAUTH2-PROVIDER:TOKEN_UNAUTHORIZED" >
+				<set-payload value="UNAUTHORIZED_TOKEN" doc:name="Set Payload" doc:id="6879fd74-a729-4cb8-bd46-c9169fe1affa" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="oauth-provider-createClientFlow" doc:id="0242e85b-eb45-4496-9435-b28f8a4bebe5" >
+		<http:listener doc:name="Listener" doc:id="4d69468c-234f-423d-b44b-0007f81da30e" config-ref="HTTP_Listener_config" path="/createClient"/>
+		<oauth2-provider:create-client doc:name="Create client" doc:id="d650508f-0c13-4b58-b501-69e0a0934c5a" config-ref="external-oauth2-provider" clientId="#[attributes.headers.client_id]" type="CONFIDENTIAL" secret="#[attributes.headers.client_secret]" clientName='#[""]' description='#[""]' principal='#[""]' redirectUris='#[["abs.com"]]' authorizedGrantTypes='#[["CLIENT_CREDENTIALS"]]' scopes="#[[]]" failIfPresent="true"/>
+		<set-payload value='#["Client access is success"]' doc:name="Set Payload" doc:id="6037a028-6fe3-4ff3-9af0-07b3fc8cc3a2" />
+	</flow>
+</mule>
